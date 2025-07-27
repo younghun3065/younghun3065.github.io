@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>졸업까지 남은 학점</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .loader { border-top-color: #3498db; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @-webkit-keyframes spinner { 0% { -webkit-transform: rotate(0deg); } 100% { -webkit-transform: rotate(360deg); } }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-enter { animation: fadeIn 0.3s ease-out; }
+        .modal-leave { animation: fadeOut 0.3s ease-in forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.95); } }
+        .slide-in { animation: slideInFromRight 0.3s ease-out forwards; }
+        .slide-out { animation: slideOutToRight 0.3s ease-in forwards; }
+        @keyframes slideInFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideOutToRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+        .timetable-cell { height: 45px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div id="app-container" class="w-full max-w-sm mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col h-[90vh] min-h-[800px] relative overflow-hidden">
+        
+        <!-- 화면 컨테이너 -->
+        <div id="view-container" class="flex-grow flex flex-col min-h-0">
+
+            <!-- 메인 화면 -->
+            <div id="main-view" class="flex flex-col w-full h-full min-h-0">
+                <header class="text-center mb-6 flex-shrink-0">
+                    <h1 class="text-2xl font-bold text-cyan-400">졸업까지 남은 학점</h1>
+                    <p class="text-gray-400 text-sm mt-1">이수 학점 정보를 확인하세요.</p>
+                </header>
+                <div id="initial-view" class="flex flex-col items-center justify-center flex-grow">
+                    <div class="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <p class="text-gray-400 mb-6">학점 정보를 불러와주세요.</p>
+                        <button id="load-button" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-8 rounded-full transition-all duration-300 shadow-lg">정보 불러오기</button>
+                    </div>
+                </div>
+                <div id="loading-view" class="hidden flex-col items-center justify-center flex-grow">
+                    <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-500 h-24 w-24"></div>
+                    <p class="mt-4 text-gray-400">정보를 불러오는 중입니다...</p>
+                </div>
+                <div id="data-view" class="hidden flex-col flex-grow min-h-0">
+                    <div id="major-cards-container" class="space-y-4 flex-grow overflow-y-auto pr-2">
+                        <div class="bg-gray-700 p-5 rounded-xl shadow-md">
+                            <h2 class="text-xl font-bold mb-3 text-yellow-400">제 1전공</h2>
+                            <div class="space-y-2 text-sm mb-4">
+                                <div class="flex justify-between"><span>총 학점:</span> <span>130</span></div>
+                                <div class="flex justify-between"><span>현재 이수 학점:</span> <span>98</span></div>
+                                <div class="flex justify-between text-green-400 font-semibold"><span>남은 학점:</span> <span>32</span></div>
+                            </div>
+                            <button data-type="major1" class="detail-btn w-full bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg text-sm transition-colors">상세 보기</button>
+                        </div>
+                        <div id="major-2-card" class="bg-gray-700 p-5 rounded-xl shadow-md hidden">
+                            <h2 class="text-xl font-bold mb-3 text-teal-400">복수전공 / 부전공</h2>
+                            <div class="space-y-2 text-sm mb-4">
+                                <div class="flex justify-between"><span>총 학점:</span> <span>42</span></div>
+                                <div class="flex justify-between"><span>현재 이수 학점:</span> <span>12</span></div>
+                                <div class="flex justify-between text-green-400 font-semibold"><span>남은 학점:</span> <span>30</span></div>
+                            </div>
+                            <button data-type="major2" class="detail-btn w-full bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg text-sm transition-colors">상세 보기</button>
+                        </div>
+                        <div id="general-edu-card" class="bg-gray-700 p-5 rounded-xl shadow-md">
+                             <h2 class="text-xl font-bold mb-3 text-indigo-400">교양</h2>
+                             <div class="space-y-2 text-sm mb-4">
+                                <div class="flex justify-between"><span>총 학점:</span> <span>36</span></div>
+                                <div class="flex justify-between"><span>현재 이수 학점:</span> <span>30</span></div>
+                                <div class="flex justify-between text-green-400 font-semibold"><span>남은 학점:</span> <span>6</span></div>
+                            </div>
+                            <button data-type="general" class="detail-btn w-full bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg text-sm transition-colors">상세 보기</button>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-gray-700 flex-shrink-0">
+                        <div class="grid grid-cols-2 gap-4">
+                            <button id="retake-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">재수강</button>
+                            <button id="planner-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 rounded-lg transition-colors">수강신청 플래너</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 상세 보기 화면 -->
+            <div id="detail-view" class="hidden flex-col flex-grow absolute top-0 left-0 w-full h-full bg-gray-800 p-6">
+                <header class="flex items-center mb-6">
+                    <button id="back-to-main-from-detail" class="p-2 rounded-full hover:bg-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h1 id="detail-title" class="text-xl font-bold text-cyan-400 mx-auto">상세 정보</h1>
+                </header>
+                <div id="detail-content" class="flex-grow overflow-y-auto"></div>
+            </div>
+
+            <!-- 재수강 화면 -->
+            <div id="retake-view" class="hidden flex-col flex-grow absolute top-0 left-0 w-full h-full bg-gray-800 p-6">
+                 <header class="flex items-center mb-4">
+                    <button id="back-to-main-from-retake" class="p-2 rounded-full hover:bg-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h1 class="text-xl font-bold text-cyan-400 mx-auto">재수강 계획</h1>
+                </header>
+                <div class="bg-gray-900 rounded-lg text-xs">
+                    <div class="grid grid-cols-12 text-center font-semibold text-gray-400 p-2 border-b border-gray-700">
+                        <div class="col-span-3">과목명</div>
+                        <div class="col-span-2">재수강</div>
+                        <div id="sort-grade-btn" class="col-span-2 cursor-pointer hover:text-white">현재성적 ↓</div>
+                        <div class="col-span-3">예상성적</div>
+                        <div class="col-span-2">재수강 후</div>
+                    </div>
+                    <div id="retake-course-list" class="max-h-[45vh] overflow-y-auto"></div>
+                </div>
+                <div class="mt-4 p-4 bg-gray-700 rounded-lg">
+                    <h3 class="text-lg font-bold text-center mb-3">예상 총 학점</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span>현재 학점:</span><span id="current-gpa" class="font-bold"></span></div>
+                        <div class="flex justify-between text-cyan-400"><span>재수강 후 학점:</span><span id="expected-gpa" class="font-bold text-lg"></span></div>
+                    </div>
+                </div>
+                <div class="mt-auto pt-4">
+                    <label class="flex items-center justify-center text-sm"><input type="checkbox" id="exclude-completed-checkbox" class="h-4 w-4 bg-gray-700 border-gray-600 text-cyan-500 focus:ring-cyan-600 rounded"><span class="ml-2 text-gray-300">재수강 완료 과목 제외하기</span></label>
+                </div>
+            </div>
+
+            <!-- 수강신청 플래너 화면 -->
+            <div id="planner-view" class="hidden flex-col flex-grow absolute top-0 left-0 w-full h-full bg-gray-800 p-6">
+                <header class="flex items-center mb-4">
+                    <button id="back-to-main-from-planner" class="p-2 rounded-full hover:bg-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h1 class="text-xl font-bold text-cyan-400 mx-auto">수강신청 플래너</h1>
+                </header>
+                
+                <div class="text-xs bg-gray-900 rounded-lg p-2 flex-shrink-0">
+                    <div class="grid grid-cols-6 text-center font-bold">
+                        <div></div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div>
+                    </div>
+                    <div id="timetable-grid" class="relative">
+                        <!-- 시간표 배경이 여기에 동적으로 생성됩니다. -->
+                        <div id="timetable-courses" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
+                    </div>
+                </div>
+
+                <div class="my-3 p-3 bg-gray-700 rounded-lg space-y-3 flex-shrink-0">
+                    <div class="flex justify-between items-center text-sm">
+                        <span>희망 학점: <span id="credit-slider-value" class="font-bold text-cyan-400">20</span>학점</span>
+                        <span>선택 학점: <span id="selected-credits" class="font-bold text-yellow-400">0</span>학점</span>
+                    </div>
+                    <input id="credit-slider" type="range" min="9" max="21" value="20" step="1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                    <button id="ai-recommend-btn" class="w-full bg-gradient-to-r from-teal-400 to-blue-500 hover:from-teal-500 hover:to-blue-600 text-white font-bold py-2 rounded-lg transition-all">
+                        3-2 학기 시간표 추천받기
+                    </button>
+                </div>
+
+                <div class="flex-grow min-h-0">
+                    <h3 class="font-bold text-center mb-2">남은 수강 과목</h3>
+                    <div id="recommended-courses-list" class="space-y-2 overflow-y-auto h-full pr-2"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 데모용 토글 버튼 -->
+        <div id="demo-controls" class="hidden text-center mt-4 p-2 bg-gray-900 rounded-lg">
+            <p class="text-xs text-gray-500 mb-2">데모용 보기 전환</p>
+            <div class="flex justify-center gap-2">
+                <button id="show-single-major" class="text-xs bg-gray-600 px-3 py-1 rounded-md">1전공만 보기</button>
+                <button id="show-double-major" class="text-xs bg-gray-600 px-3 py-1 rounded-md">복수전공 보기</button>
+            </div>
+        </div>
+
+        <!-- 모달들 -->
+        <div id="login-modal" class="hidden absolute inset-0 bg-gray-900 bg-opacity-75 items-center justify-center p-4"></div>
+        <div id="consent-modal" class="hidden absolute inset-0 bg-gray-900 bg-opacity-75 items-center justify-center p-4"></div>
+        <div id="success-modal" class="hidden absolute inset-0 bg-gray-900 bg-opacity-75 items-center justify-center p-4"></div>
+        <div id="course-list-modal" class="hidden absolute inset-0 bg-gray-900 bg-opacity-75 items-center justify-center p-4"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const mainView = document.getElementById('main-view');
+            const detailView = document.getElementById('detail-view');
+            const retakeView = document.getElementById('retake-view');
+            const plannerView = document.getElementById('planner-view');
+            
+            const initialView = document.getElementById('initial-view');
+            const loadingView = document.getElementById('loading-view');
+            const dataView = document.getElementById('data-view');
+            const demoControls = document.getElementById('demo-controls');
+
+            const loadButton = document.getElementById('load-button');
+            const retakeBtn = document.getElementById('retake-btn');
+            const plannerBtn = document.getElementById('planner-btn');
+            
+            const backToMainFromDetailBtn = document.getElementById('back-to-main-from-detail');
+            const backToMainFromRetakeBtn = document.getElementById('back-to-main-from-retake');
+            const backToMainFromPlannerBtn = document.getElementById('back-to-main-from-planner');
+
+            const major2Card = document.getElementById('major-2-card');
+            const showSingleMajorBtn = document.getElementById('show-single-major');
+            const showDoubleMajorBtn = document.getElementById('show-double-major');
+
+            const loginModalEl = document.getElementById('login-modal');
+            const consentModalEl = document.getElementById('consent-modal');
+            const successModalEl = document.getElementById('success-modal');
+            const courseListModalEl = document.getElementById('course-list-modal');
+
+            const detailTitle = document.getElementById('detail-title');
+            const detailContent = document.getElementById('detail-content');
+
+            const retakeCourseListEl = document.getElementById('retake-course-list');
+            const sortGradeBtn = document.getElementById('sort-grade-btn');
+            const excludeCheckbox = document.getElementById('exclude-completed-checkbox');
+            const currentGpaEl = document.getElementById('current-gpa');
+            const expectedGpaEl = document.getElementById('expected-gpa');
+
+            const timetableGridEl = document.getElementById('timetable-grid');
+            const timetableCoursesEl = document.getElementById('timetable-courses');
+            const creditSlider = document.getElementById('credit-slider');
+            const creditSliderValue = document.getElementById('credit-slider-value');
+            const selectedCreditsEl = document.getElementById('selected-credits');
+            const aiRecommendBtn = document.getElementById('ai-recommend-btn');
+            const recommendedCoursesListEl = document.getElementById('recommended-courses-list');
+
+            // --- Data ---
+            const gradePoints = { 'A+': 4.5, 'A': 4.0, 'B+': 3.5, 'B': 3.0, 'C+': 2.5, 'C': 2.0, 'D+': 1.5, 'D': 1.0, 'F': 0 };
+            const gradeOptions = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'];
+            
+            const allUserCourses = [
+                { id: 1, name: '생체계측', credits: 3, currentGrade: 'B+'}, { id: 2, name: '생체시스템공학', credits: 3, currentGrade: 'B+'}, { id: 3, name: '방사선학', credits: 3, currentGrade: 'B'}, { id: 4, name: '디지털시스템', credits: 3, currentGrade: 'A'}, { id: 5, name: '디지털시스템실습', credits: 2, currentGrade: 'B+'}, { id: 6, name: '직무결정과 경력개발', credits: 1, currentGrade: 'P'}, { id: 7, name: '인간공학', credits: 3, currentGrade: 'B+'}, { id: 8, name: '전자회로실험', credits: 2, currentGrade: 'A'}, { id: 9, name: '의공생화학', credits: 3, currentGrade: 'B'}, { id: 10, name: '과학계산을 위한 컴퓨터활용', credits: 2, currentGrade: 'A'}, { id: 11, name: 'Pre캡스톤디자인', credits: 3, currentGrade: 'A+'}, { id: 12, name: '물리화학', credits: 3, currentGrade: 'F' }, { id: 13, name: '일반수학', credits: 3, currentGrade: 'D' }, { id: 14, name: '전자회로', credits: 3, currentGrade: 'D+' }, { id: 15, name: '의공화학', credits: 3, currentGrade: 'C' }, { id: 16, name: '임상여성학', credits: 3, currentGrade: 'C+' }, { id: 17, name: '대학영어회화', credits: 2, currentGrade: 'C', retakeCompleted: true, finalGrade: 'B+' },
+            ];
+
+            let retakeCourses = allUserCourses.filter(c => c.currentGrade !== 'P').map(c => ({...c, planToRetake: false, expectedGrade: 'A+', completed: c.retakeCompleted || false, retakeGrade: c.finalGrade || null }));
+
+            const detailsData = {
+                major1: { 
+                    title: '제1전공 상세', 
+                    content: `
+                        <h3 class="font-bold text-gray-400 mb-2">남은 필수 과목</h3>
+                        <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                            <h4 class="font-semibold text-yellow-400 mb-3">전공필수 (의공학부)</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="grid grid-cols-3 gap-2 items-center">
+                                    <span>총 5과목 <button class="course-detail-btn text-cyan-400 hover:underline" data-courses='[{"name": "생체계측", "credit": 3}, {"name": "공업수학", "credit": 3}, {"name": "프로그래밍언어", "credit": 3}, {"name": "의공생화학", "credit": 3}, {"name": "인체생리학", "credit": 3}]'>(상세보기)</button></span>
+                                    <span>이수: 22</span> <span class="text-green-400">남음: 15</span>
+                                </div>
+                            </div>
+                        </div>
+                        <h3 class="font-bold text-gray-400 mb-2 mt-4">남은 선택 과목</h3>
+                        <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                            <h4 class="font-semibold text-yellow-400 mb-3">전공선택 (의공학부)</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="grid grid-cols-3 gap-2 items-center">
+                                    <span>총 4과목 <button class="course-detail-btn text-cyan-400 hover:underline" data-courses='[{"name": "인간공학", "credit": 3}, {"name": "전자회로실험", "credit": 2}, {"name": "회로이론", "credit": 3}, {"name": "Pre캡스톤디자인", "credit": 3}]'>(상세보기)</button></span>
+                                    <span>이수: 36</span> <span class="text-green-400">남음: 11</span>
+                                </div>
+                            </div>
+                        </div>` 
+                },
+                major2: { 
+                    title: '원자력응용공학부 상세', 
+                    content: `
+                        <h3 class="font-bold text-gray-400 mb-2">남은 기초 과목</h3>
+                        <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                            <h4 class="font-semibold text-teal-400 mb-3">기초</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="grid grid-cols-3 gap-2 items-center">
+                                    <span>총 4과목 <button class="course-detail-btn text-cyan-400 hover:underline" data-courses='[{"name": "원자력기초이론", "credit": 3}, {"name": "방사선관리학", "credit": 3}, {"name": "방사선의 산업 및 의학 응용", "credit": 3}, {"name": "방사선계측학", "credit": 3}]'>(상세보기)</button></span>
+                                    <span>이수: 0</span> <span class="text-green-400">남음: 12</span>
+                                </div>
+                            </div>
+                        </div>
+                        <h3 class="font-bold text-gray-400 mb-2 mt-4">남은 응용 과목</h3>
+                        <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                            <h4 class="font-semibold text-teal-400 mb-3">응용</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="grid grid-cols-3 gap-2 items-center">
+                                    <span>총 4과목 <button class="course-detail-btn text-cyan-400 hover:underline" data-courses='[{"name": "원자력관계 법령", "credit": 3}, {"name": "방사선취급기술", "credit": 3}, {"name": "방사선계측학 및 실습", "credit": 3}, {"name": "방사선생물학", "credit": 3}]'>(상세보기)</button></span>
+                                    <span>이수: 0</span> <span class="text-green-400">남음: 12</span>
+                                </div>
+                            </div>
+                        </div>`
+                },
+                general: { 
+                    title: '교양 상세', 
+                    content: `
+                        <h3 class="font-bold text-gray-400 mb-2">남은 필수 과목</h3>
+                        <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                            <h4 class="font-semibold text-indigo-400 mb-3">교양필수</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="grid grid-cols-3 gap-2 items-center"><span>총 2과목 <button class="course-detail-btn text-cyan-400 hover:underline" data-courses='[{"name": "진로탐구와 역량개발", "credit": 1}, {"name": "인제 새내기 세미나", "credit": 1}]'>(상세보기)</button></span><span>이수: 2</span> <span class="text-green-400">남음: 2</span></div>
+                            </div>
+                        </div>
+                        <h3 class="font-bold text-gray-400 mb-2 mt-4">남은 선택 과목</h3>
+                        <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                            <h4 class="font-semibold text-indigo-400 mb-3">교양선택</h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="grid grid-cols-3 gap-2 items-center"><span>인문사회 <button class="course-detail-btn text-cyan-400 hover:underline" data-courses='[{"name": "철학 입문", "credit": 3}, {"name": "한국이민의 역사와문화", "credit": 3}, {"name": "비판적 사고", "credit": 2}]'>(3)</button></span><span>이수: 15</span> <span class="text-green-400">남음: 8</span></div>
+                                <div class="grid grid-cols-3 gap-2 items-center"><span>자연과학 <button class="course-detail-btn text-cyan-400 hover:underline" data-courses='[{"name": "물리학의 세계", "credit": 2}]'>(1)</button></span><span>이수: 4</span> <span class="text-green-400">남음: 2</span></div>
+                                <div class="grid grid-cols-3 gap-2 items-center"><span>예술 <button class="course-detail-btn text-cyan-400 hover:underline" data-courses='[{"name": "이탈리아가곡의 이해", "credit": 3}]'>(1)</button></span><span>이수: 6</span> <span class="text-green-400">남음: 3</span></div>
+                            </div>
+                        </div>` 
+                }
+            };
+            const courseColors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500', 'bg-purple-500'];
+            const recommendedCourses = [
+                // 3-2 학기
+                { id: 201, name: '바이오멤스개론', credits: 3, time: { day: 0, start: 0, end: 2 }, dept: '의공학부', semester: '3-2', type: '전선' },
+                { id: 202, name: '의료기기개론', credits: 3, time: { day: 1, start: 2, end: 4 }, dept: '의공학부', semester: '3-2', type: '전선' },
+                { id: 203, name: '캡스톤디자인2', credits: 3, time: { day: 4, start: 0, end: 3 }, dept: '의공학부', semester: '3-2', type: '전선' },
+                { id: 204, name: '디지털시스템', credits: 3, time: { day: 2, start: 0, end: 2 }, dept: '의공학부', semester: '3-2', type: '전선' },
+                { id: 205, name: '방사선계측학', credits: 3, time: { day: 3, start: 2, end: 4 }, dept: '원자력응용공학부', semester: '3-2', type: '기초' },
+                { id: 206, name: '방사선생물학', credits: 3, time: { day: 0, start: 5, end: 7 }, dept: '원자력응용공학부', semester: '3-2', type: '기초' },
+                { id: 207, name: '제2외국어', credits: 2, time: { day: 4, start: 3, end: 5 }, dept: '교양', semester: '3-2', type: '교선' },
+                // 4-1 학기
+                { id: 301, name: '캡스톤디자인1', credits: 3, time: { day: 0, start: 2, end: 5 }, dept: '의공학부', semester: '4-1', type: '전선' },
+                { id: 302, name: '임상의료기기공학', credits: 3, time: { day: 1, start: 0, end: 2 }, dept: '의공학부', semester: '4-1', type: '전선' },
+                { id: 303, name: '물리화학(재)', credits: 3, time: { day: 2, start: 2, end: 4 }, dept: '의공학부', semester: '4-1', type: '전필' },
+                { id: 304, name: '원자력 관계 법령', credits: 3, time: { day: 3, start: 0, end: 2 }, dept: '원자력응용공학부', semester: '4-1', type: '응용' },
+                { id: 305, name: '방사선취급기술', credits: 3, time: { day: 4, start: 5, end: 7 }, dept: '원자력응용공학부', semester: '4-1', type: '응용' },
+                { id: 306, name: '원자력기초이론', credits: 3, time: { day: 1, start: 5, end: 7 }, dept: '원자력응용공학부', semester: '4-1', type: '기초' },
+                { id: 307, name: '방사선관리학', credits: 3, time: { day: 2, start: 5, end: 7 }, dept: '원자력응용공학부', semester: '4-1', type: '기초' },
+                // 4-2 학기
+                { id: 401, name: '의료영상학', credits: 3, time: { day: 0, start: 0, end: 2 }, dept: '의공학부', semester: '4-2', type: '전선' },
+                { id: 402, name: '방사선생물학(응용)', credits: 3, time: { day: 1, start: 2, end: 4 }, dept: '원자력응용공학부', semester: '4-2', type: '응용' },
+                { id: 403, name: '방사선계측학 및 실습', credits: 3, time: { day: 3, start: 2, end: 5 }, dept: '원자력응용공학부', semester: '4-2', type: '응용' },
+            ];
+            const aiRecommendationPlan = [201, 202, 203, 204, 205, 206, 207]; // 3-2 학기 계획
+
+            let selectedCourseIds = new Set();
+            let sortOrder = 'desc';
+            let excludeCompleted = false;
+
+            // --- Functions ---
+            const switchView = (targetView) => {
+                [mainView, detailView, retakeView, plannerView].forEach(v => v.classList.add('hidden'));
+                targetView.classList.remove('hidden');
+                targetView.classList.add('flex', 'flex-col');
+                if (targetView !== mainView) {
+                    targetView.classList.remove('slide-out');
+                    targetView.classList.add('slide-in');
+                }
+            };
+            
+            const openModal = (modalEl, content) => {
+                modalEl.innerHTML = content;
+                modalEl.classList.remove('hidden', 'modal-leave');
+                modalEl.classList.add('flex', 'modal-enter');
+                addModalEventListeners(modalEl);
+            };
+
+            const closeModal = (modalEl) => {
+                modalEl.classList.add('modal-leave');
+                setTimeout(() => {
+                    modalEl.classList.add('hidden');
+                    modalEl.classList.remove('flex');
+                    modalEl.innerHTML = '';
+                }, 300);
+            };
+
+            const renderLoginModal = () => openModal(loginModalEl, `<div class="bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm"><div class="text-center mb-6"><img src="https://placehold.co/150x40/1a202c/ffffff?text=INJE+UNIVERSITY" alt="인제대학교 로고" class="mx-auto mb-2"><h2 class="text-xl font-bold text-white">인제대학교 통합로그인</h2></div><form id="login-form"><div class="space-y-4"><input type="text" placeholder="아이디 입력" class="w-full bg-gray-700 text-white p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"><input type="password" placeholder="비밀번호 입력" class="w-full bg-gray-700 text-white p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"></div><button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-6 transition-colors">로그인</button><div class="text-center mt-4"><a href="#" class="text-sm text-gray-400 hover:text-white">아이디/비밀번호 찾기</a></div></form></div>`);
+            const renderConsentModal = () => openModal(consentModalEl, `<div class="bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm text-center"><h2 class="text-xl font-bold text-white mb-4">연동 동의</h2><p class="text-gray-300 mb-6">헤이영과 연동되는 것을<br>동의하겠습니까?</p><div class="flex items-center justify-center mb-6"><input id="consent-checkbox" type="checkbox" class="h-4 w-4 bg-gray-700 border-gray-600 text-cyan-500 focus:ring-cyan-600 rounded"><label for="consent-checkbox" class="ml-2 text-sm text-gray-300">개인정보 수집 동의</label></div><div class="flex gap-4"><button id="cancel-consent-button" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-lg transition-colors">취소</button><button id="link-button" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>연동 하기</button></div></div>`);
+            const renderSuccessModal = () => openModal(successModalEl, `<div class="bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm text-center"><div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4"><svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div><h2 class="text-xl font-bold text-white mb-2">연동 완료!</h2><p class="text-gray-300 mb-6">헤이영과 정상적으로<br>연동되었습니다!</p><button id="confirm-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">확인</button></div>`);
+            const renderCourseListModal = (title, courses) => openModal(courseListModalEl, `<div class="bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-sm"><h2 class="text-lg font-bold text-center mb-4">${title}</h2><div class="text-sm space-y-2 max-h-60 overflow-y-auto">${courses.map(c => `<div class="flex justify-between p-2 bg-gray-900 rounded-md"><span>${c.name}</span><span>${c.credit}학점</span></div>`).join('')}</div><button id="close-course-modal" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg mt-6 transition-colors">닫기</button></div>`);
+
+            const renderRetakeList = () => {
+                let coursesToDisplay = retakeCourses.filter(c => c.currentGrade !== 'P');
+                if (excludeCompleted) {
+                    coursesToDisplay = coursesToDisplay.filter(c => !c.completed);
+                }
+                coursesToDisplay.sort((a, b) => {
+                    const gradeA = gradePoints[a.currentGrade] || 0;
+                    const gradeB = gradePoints[b.currentGrade] || 0;
+                    return sortOrder === 'desc' ? gradeB - gradeA : gradeA - gradeB;
+                });
+                retakeCourseListEl.innerHTML = coursesToDisplay.map(course => `
+                    <div class="grid grid-cols-12 text-center items-center p-2 border-b border-gray-700/50">
+                        <div class="col-span-3 text-left pl-2">${course.name}</div>
+                        <div class="col-span-2">${course.completed ? '<span class="text-xs text-green-400">완료</span>' : `<input type="checkbox" data-id="${course.id}" class="retake-checkbox h-4 w-4 bg-gray-600" ${course.planToRetake ? 'checked' : ''}>`}</div>
+                        <div class="col-span-2 font-semibold">${course.currentGrade}</div>
+                        <div class="col-span-3">${!course.completed ? `<select data-id="${course.id}" class="expected-grade-select bg-gray-600 text-white text-xs rounded p-1 w-full focus:outline-none">${gradeOptions.map(g => `<option value="${g}" ${course.expectedGrade === g ? 'selected' : ''}>${g}</option>`).join('')}</select>` : ''}</div>
+                        <div class="col-span-2 text-blue-400 font-semibold">${course.retakeGrade || ''}</div>
+                    </div>`).join('');
+                calculateAndUpdateGPA();
+            };
+            
+            const calculateAndUpdateGPA = () => {
+                let totalCredits = 0, currentPoints = 0, expectedPoints = 0;
+                const coursesForCalc = allUserCourses.filter(c => c.currentGrade !== 'P');
+
+                coursesForCalc.forEach(c => {
+                    const originalCredit = c.credits;
+                    const originalGradePoint = gradePoints[c.currentGrade] || 0;
+                    totalCredits += originalCredit;
+                    
+                    const retakeInfo = retakeCourses.find(rc => rc.id === c.id);
+                    
+                    if (retakeInfo && retakeInfo.planToRetake && !retakeInfo.completed) {
+                        currentPoints += originalGradePoint * originalCredit;
+                        expectedPoints += (gradePoints[retakeInfo.expectedGrade] || 0) * originalCredit;
+                    } else if (retakeInfo && retakeInfo.completed && retakeInfo.retakeGrade) {
+                        currentPoints += originalGradePoint * originalCredit;
+                        expectedPoints += (gradePoints[retakeInfo.retakeGrade] || 0) * originalCredit;
+                    } else {
+                        currentPoints += originalGradePoint * originalCredit;
+                        expectedPoints += originalGradePoint * originalCredit;
+                    }
+                });
+                currentGpaEl.textContent = totalCredits > 0 ? (currentPoints / totalCredits).toFixed(2) : '0.00';
+                expectedGpaEl.textContent = totalCredits > 0 ? (expectedPoints / totalCredits).toFixed(2) : '0.00';
+            };
+            
+            const renderRecommendedCourses = () => {
+                recommendedCoursesListEl.innerHTML = recommendedCourses.map(course => `
+                    <div class="flex items-center justify-between bg-gray-700 p-2 rounded-lg text-sm">
+                        <div>
+                            <p class="font-bold">${course.name}</p>
+                            <div class="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                                <span class="bg-gray-600 px-1.5 py-0.5 rounded">${course.dept}</span>
+                                <span class="bg-gray-600 px-1.5 py-0.5 rounded">${course.semester}</span>
+                                <span class="bg-gray-600 px-1.5 py-0.5 rounded">${course.type}</span>
+                                <span class="font-semibold text-yellow-400">${course.credits}학점</span>
+                            </div>
+                        </div>
+                        <button data-id="${course.id}" class="add-course-btn bg-cyan-500 hover:bg-cyan-600 text-white px-3 py-1 rounded-md text-xs flex-shrink-0">
+                            ${selectedCourseIds.has(course.id) ? '제거' : '추가'}
+                        </button>
+                    </div>`).join('');
+            };
+
+            const renderTimetable = () => {
+                timetableCoursesEl.innerHTML = '';
+                let colorIndex = 0;
+                selectedCourseIds.forEach(id => {
+                    const course = recommendedCourses.find(c => c.id === id);
+                    if (!course) return;
+                    const courseEl = document.createElement('div');
+                    courseEl.className = `absolute w-[19.5%] rounded-md text-white text-[10px] p-1 leading-tight flex items-center justify-center text-center ${courseColors[colorIndex++ % courseColors.length]} bg-opacity-80`;
+                    courseEl.style.left = `${course.time.day * 20 + 0.5}%`;
+                    courseEl.style.top = `${course.time.start * 45}px`;
+                    courseEl.style.height = `${(course.time.end - course.time.start) * 45 - 2}px`;
+                    courseEl.innerHTML = `${course.name}<br>(${course.credits}학점)`;
+                    timetableCoursesEl.appendChild(courseEl);
+                });
+            };
+            
+            const updateSelectedCredits = () => {
+                selectedCreditsEl.textContent = Array.from(selectedCourseIds).reduce((sum, id) => sum + (recommendedCourses.find(c => c.id === id)?.credits || 0), 0);
+            };
+
+            const updatePlanner = () => {
+                renderTimetable();
+                renderRecommendedCourses();
+                updateSelectedCredits();
+            };
+
+            const simulateAIRecommendation = () => {
+                aiRecommendBtn.disabled = true;
+                aiRecommendBtn.innerHTML = '<div class="flex justify-center items-center"><div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span class="ml-2">추천 시간표 생성 중...</span></div>';
+                
+                setTimeout(() => {
+                    selectedCourseIds = new Set(aiRecommendationPlan);
+                    updatePlanner();
+                    aiRecommendBtn.disabled = false;
+                    aiRecommendBtn.innerHTML = '3-2 학기 시간표 추천받기';
+                }, 1500);
+            };
+
+            const createTimetableGrid = () => {
+                const timeLabels = ['9', '10', '11', '12', '1', '2', '3', '4', '5'];
+                const days = ['월', '화', '수', '목', '금'];
+                
+                const timeLabelContainer = document.createElement('div');
+                timeLabelContainer.className = "absolute top-0 left-0 -ml-6 text-right text-gray-500";
+                timeLabelContainer.style.fontSize = "10px";
+
+                timeLabels.forEach(label => {
+                    const labelEl = document.createElement('div');
+                    labelEl.className = "timetable-cell flex items-center justify-end pr-1";
+                    labelEl.textContent = label;
+                    timeLabelContainer.appendChild(labelEl);
+                });
+
+                const gridContainer = document.createElement('div');
+                gridContainer.className = "grid grid-cols-5 gap-px bg-gray-700";
+
+                for (let i = 0; i < 5; i++) {
+                    const dayCol = document.createElement('div');
+                    dayCol.className = "space-y-px";
+                    for (let j = 0; j < 9; j++) {
+                        const cell = document.createElement('div');
+                        cell.className = "timetable-cell bg-gray-800";
+                        dayCol.appendChild(cell);
+                    }
+                    gridContainer.appendChild(dayCol);
+                }
+                
+                timetableGridEl.prepend(timeLabelContainer, gridContainer);
+            };
+
+            // --- Event Listeners ---
+            function addModalEventListeners(modal) {
+                if (modal.id === 'login-modal') {
+                    modal.querySelector('#login-form').addEventListener('submit', e => { e.preventDefault(); closeModal(loginModalEl); renderConsentModal(); });
+                } else if (modal.id === 'consent-modal') {
+                    modal.querySelector('#consent-checkbox').addEventListener('change', e => { modal.querySelector('#link-button').disabled = !e.target.checked; });
+                    modal.querySelector('#cancel-consent-button').addEventListener('click', () => closeModal(consentModalEl));
+                    modal.querySelector('#link-button').addEventListener('click', () => { closeModal(consentModalEl); renderSuccessModal(); });
+                } else if (modal.id === 'success-modal') {
+                    modal.querySelector('#confirm-button').addEventListener('click', () => {
+                        closeModal(successModalEl);
+                        initialView.classList.add('hidden');
+                        loadingView.classList.remove('hidden');
+                        loadingView.classList.add('flex');
+                        setTimeout(() => {
+                            loadingView.classList.add('hidden');
+                            loadingView.classList.remove('flex');
+                            dataView.classList.remove('hidden');
+                            dataView.classList.add('flex');
+                            demoControls.classList.remove('hidden');
+                        }, 1500);
+                    });
+                } else if (modal.id === 'course-list-modal') {
+                    modal.querySelector('#close-course-modal').addEventListener('click', () => closeModal(courseListModalEl));
+                }
+            }
+            
+            loadButton.addEventListener('click', renderLoginModal);
+            
+            document.querySelectorAll('.detail-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const type = e.currentTarget.dataset.type;
+                    detailTitle.textContent = detailsData[type].title;
+                    detailContent.innerHTML = detailsData[type].content;
+                    detailContent.querySelectorAll('.course-detail-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            renderCourseListModal(`${e.target.closest('.grid').querySelector('span').textContent} 과목 목록`, JSON.parse(e.target.dataset.courses));
+                        });
+                    });
+                    switchView(detailView);
+                });
+            });
+
+            [backToMainFromDetailBtn, backToMainFromRetakeBtn, backToMainFromPlannerBtn].forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const parentView = e.currentTarget.closest('.slide-in');
+                    if(parentView) parentView.classList.add('slide-out');
+                    setTimeout(() => {
+                        switchView(mainView);
+                        if(parentView) parentView.classList.remove('slide-out');
+                    }, 300);
+                });
+            });
+            
+            retakeBtn.addEventListener('click', () => { renderRetakeList(); switchView(retakeView); });
+            plannerBtn.addEventListener('click', () => { 
+                selectedCourseIds.clear();
+                updatePlanner(); 
+                switchView(plannerView); 
+            });
+
+            retakeView.addEventListener('change', e => {
+                const target = e.target;
+                const id = parseInt(target.dataset.id);
+                if (!id) return;
+                const course = retakeCourses.find(c => c.id === id);
+                if (!course) return;
+
+                if (target.classList.contains('retake-checkbox')) {
+                    course.planToRetake = target.checked;
+                }
+                if (target.classList.contains('expected-grade-select')) {
+                    course.expectedGrade = target.value;
+                }
+                calculateAndUpdateGPA();
+            });
+            sortGradeBtn.addEventListener('click', () => {
+                sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+                sortGradeBtn.textContent = `현재성적 ${sortOrder === 'desc' ? '↓' : '↑'}`;
+                renderRetakeList();
+            });
+            excludeCheckbox.addEventListener('change', e => { excludeCompleted = e.target.checked; renderRetakeList(); });
+            
+            recommendedCoursesListEl.addEventListener('click', e => {
+                if (e.target.classList.contains('add-course-btn')) {
+                    const courseId = parseInt(e.target.dataset.id);
+                    if (selectedCourseIds.has(courseId)) {
+                        selectedCourseIds.delete(courseId);
+                    } else {
+                        selectedCourseIds.add(courseId);
+                    }
+                    updatePlanner();
+                }
+            });
+            creditSlider.addEventListener('input', e => { creditSliderValue.textContent = e.target.value; });
+            aiRecommendBtn.addEventListener('click', simulateAIRecommendation);
+
+            showSingleMajorBtn.addEventListener('click', () => major2Card.classList.add('hidden'));
+            showDoubleMajorBtn.addEventListener('click', () => major2Card.classList.remove('hidden'));
+
+            // 초기화 함수 호출
+            createTimetableGrid();
+        });
+    </script>
+</body>
+</html>
