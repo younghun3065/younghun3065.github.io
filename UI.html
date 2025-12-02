@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stroke Rehab Watch UI</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* 스마트워치 베젤 디자인 */
+        .watch-case {
+            width: 360px;
+            height: 440px;
+            background-color: #1c1c1e;
+            border-radius: 48px;
+            padding: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+            border: 4px solid #3a3a3c;
+        }
+
+        /* 디지털 크라운 (버튼) */
+        .crown {
+            position: absolute;
+            right: -12px;
+            top: 100px;
+            width: 12px;
+            height: 40px;
+            background: #48484a;
+            border-radius: 0 6px 6px 0;
+            border-left: 1px solid #000;
+        }
+
+        .side-button {
+            position: absolute;
+            right: -12px;
+            top: 160px;
+            width: 6px;
+            height: 80px;
+            background: #48484a;
+            border-radius: 0 4px 4px 0;
+        }
+
+        /* 화면 영역 */
+        .screen {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            border-radius: 40px;
+            overflow: hidden;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 상단 상태바 */
+        .status-bar {
+            padding: 10px 20px;
+            font-size: 12px;
+            color: #8e8e93;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 콘텐츠 영역 */
+        .content {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            display: none; /* 탭 전환을 위해 기본 숨김 */
+            animation: fadeIn 0.3s ease;
+        }
+
+        .content.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* 화면 1: 메인 게이지 */
+        .gauge-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            margin-bottom: 20px;
+        }
+        
+        .value-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .value-number {
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .value-label {
+            font-size: 14px;
+            color: #8e8e93;
+            margin-top: 5px;
+        }
+
+        .status-msg {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+
+        .msg-warning { background-color: rgba(255, 69, 58, 0.2); color: #ff453a; }
+        .msg-safe { background-color: rgba(48, 209, 88, 0.2); color: #30d158; }
+
+        /* 화면 2: 차트 */
+        .chart-wrapper {
+            width: 100%;
+            height: 220px;
+        }
+        
+        .chart-legend {
+            font-size: 11px;
+            color: #8e8e93;
+            margin-bottom: 5px;
+            text-align: left;
+            width: 100%;
+            padding-left: 10px;
+        }
+
+        /* 하단 탭 네비게이션 */
+        .tab-bar {
+            height: 60px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: #1c1c1e;
+            border-top: 1px solid #2c2c2e;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #8e8e93;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        .tab-btn.active {
+            color: #0a84ff;
+        }
+
+        /* Alert 스타일 */
+        .alert-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 69, 58, 0.9);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .alert-icon { font-size: 50px; margin-bottom: 20px; animation: pulse 1s infinite; }
+        .alert-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .alert-desc { font-size: 16px; padding: 0 20px; margin-bottom: 30px; }
+        .alert-btn {
+            background: white; color: #ff453a; border: none; padding: 10px 30px;
+            border-radius: 20px; font-weight: bold; cursor: pointer;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="watch-case">
+        <div class="crown"></div>
+        <div class="side-button"></div>
+        
+        <div class="screen">
+            <div class="status-bar">
+                <span>09:41</span>
+                <span>Day 14</span>
+            </div>
+
+            <div id="tab-home" class="content active">
+                <div class="gauge-container">
+                    <canvas id="gaugeChart"></canvas>
+                    <div class="value-display">
+                        <div class="value-number" id="current-uratio">0.36</div>
+                        <div class="value-label">Usage Ratio</div>
+                    </div>
+                </div>
+                <div class="status-msg msg-warning" id="status-text">
+                    ⚠️ 불균형 심각
+                </div>
+            </div>
+
+            <div id="tab-trend" class="content">
+                <div class="chart-legend">
+                    Day 8부터 감소 감지 (Drift)
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div id="alert-screen" class="alert-overlay">
+                <div class="alert-icon">🚨</div>
+                <div class="alert-title">조기 탐지 경고</div>
+                <div class="alert-desc">오른팔 사용량이 급격히 줄고 있습니다. (0.45 미만)</div>
+                <button class="alert-btn" onclick="closeAlert()">확인</button>
+            </div>
+
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('home')">📊</button>
+                <button class="tab-btn" onclick="switchTab('trend')">📈</button>
+                <button class="tab-btn" style="color: #ff453a;" onclick="showAlert()">🔔</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 데이터 시나리오 설정 ---
+        // 14일간의 데이터 (1~7일 정상, 8일부터 -2%씩 Drift, 10일경 0.45 이탈)
+        const days = Array.from({length: 14}, (_, i) => i + 1);
+        const uRatios = [
+            0.50, 0.51, 0.49, 0.50, 0.48, 0.49, 0.50, // Normal
+            0.48, 0.46, 0.44, 0.42, 0.40, 0.38, 0.36  // Drift Start (Day 8) -> Current (Day 14)
+        ];
+
+        // 색상 로직: 0.45 미만 Red, 0.45~0.5 Orange(Drift), 0.5 이상 Green
+        const barColors = uRatios.map(val => {
+            if (val < 0.45) return '#ff453a'; // Danger
+            if (val < 0.50) return '#ff9f0a'; // Drift Warning
+            return '#30d158'; // Safe
+        });
+
+        // --- 2. 메인 게이지 차트 (도넛) ---
+        const ctxGauge = document.getElementById('gaugeChart').getContext('2d');
+        const currentVal = uRatios[uRatios.length - 1]; // Day 14 값
+        
+        new Chart(ctxGauge, {
+            type: 'doughnut',
+            data: {
+                labels: ['Bad Arm', 'Good Arm'],
+                datasets: [{
+                    data: [currentVal, 1 - currentVal],
+                    backgroundColor: ['#ff453a', '#333'],
+                    borderWidth: 0,
+                    circumference: 360,
+                    rotation: 270,
+                    cutout: '85%'
+                }]
+            },
+            options: { plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+        });
+
+        // --- 3. 트렌드 차트 (막대) ---
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        
+        new Chart(ctxTrend, {
+            type: 'bar',
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'U-Ratio',
+                    data: uRatios,
+                    backgroundColor: barColors,
+                    borderRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    annotation: {
+                        annotations: {
+                            line1: {
+                                type: 'line',
+                                yMin: 0.45,
+                                yMax: 0.45,
+                                borderColor: 'white',
+                                borderWidth: 1,
+                                borderDash: [5, 5],
+                                label: { enabled: true, content: 'Limit' }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0.3, max: 0.6,
+                        grid: { color: '#333' },
+                        ticks: { color: '#8e8e93' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#8e8e93', maxTicksLimit: 7 }
+                    }
+                }
+            }
+        });
+
+        // --- 4. 인터랙션 함수 ---
+        function switchTab(tabName) {
+            // 탭 활성화 로직
+            document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            if(tabName === 'home') {
+                document.getElementById('tab-home').classList.add('active');
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            } else {
+                document.getElementById('tab-trend').classList.add('active');
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            }
+        }
+
+        function showAlert() {
+            document.getElementById('alert-screen').style.display = 'flex';
+        }
+
+        function closeAlert() {
+            document.getElementById('alert-screen').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
