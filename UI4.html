@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stroke Rehab Watch UI (Final Fixed)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* 1. 시계 케이스 (베젤) */
+        .watch-case {
+            width: 360px;
+            height: 440px;
+            background-color: #1c1c1e;
+            border-radius: 48px;
+            /* 내부 여백이 화면 크기를 침범하지 않도록 설정 */
+            padding: 12px; 
+            box-sizing: border-box; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+            border: 4px solid #3a3a3c;
+            /* 화면이 튀어나오지 않게 하는 핵심 속성 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 2. 내부 스크린 (화면) */
+        .screen {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            border-radius: 36px; /* 베젤 곡률에 맞춤 */
+            /* 화면 밖으로 튀어나가는 요소 숨김 (가장 중요) */
+            overflow: hidden; 
+            color: white;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 상단 상태바 */
+        .status-bar {
+            padding: 10px 20px;
+            font-size: 12px;
+            color: #8e8e93;
+            display: flex;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        /* 콘텐츠 영역 공통 */
+        .content {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .content.active {
+            display: flex;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- 측정 중 화면 스타일 --- */
+        #measuring-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .pulse-circle {
+            width: 60px; height: 60px;
+            background-color: #0a84ff;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.7; }
+        }
+
+        /* --- 경고 화면 스타일 --- */
+        #alert-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255, 69, 58, 0.95); /* 강한 빨강 배경 */
+            z-index: 100;
+            display: none; /* 기본 숨김 */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .alert-icon { font-size: 60px; margin-bottom: 15px; }
+        .alert-title { font-size: 26px; font-weight: bold; margin-bottom: 10px; }
+        .alert-btn {
+            background: white; color: #ff453a; border: none; padding: 12px 30px;
+            border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 20px;
+        }
+
+        /* 게이지 & 텍스트 스타일 */
+        .gauge-container { position: relative; width: 180px; height: 180px; margin-bottom: 20px; }
+        .value-display { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 100%; }
+        .value-number { font-size: 42px; font-weight: 700; line-height: 1; }
+        .value-label { font-size: 14px; color: #8e8e93; margin-top: 5px; }
+        .unbalanced-arm { font-size: 18px; font-weight: bold; margin-top: 5px; }
+
+        .status-msg { font-size: 16px; font-weight: 600; margin-top: 10px; padding: 8px 16px; border-radius: 20px; }
+        .msg-danger { background-color: rgba(255, 69, 58, 0.2); color: #ff453a; }
+        .msg-warning { background-color: rgba(255, 159, 10, 0.2); color: #ff9f0a; } 
+        .msg-safe { background-color: rgba(48, 209, 88, 0.2); color: #30d158; }
+
+        /* 탭 및 캘린더 스타일 */
+        #tab-trend.content, #tab-calendar.content { justify-content: flex-start; padding-top: 20px; }
+        .chart-wrapper { width: 100%; height: 200px; }
+        
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; width: 100%; max-width: 320px; }
+        .day-label { font-size: 12px; color: #8e8e93; }
+        .day-cell { padding: 8px 0; font-size: 16px; border-radius: 50%; cursor: pointer; }
+        .day-cell.has-data { border: 1px solid #0a84ff; color: #0a84ff; }
+        .day-cell.active-date { background-color: #0a84ff; color: white; }
+        .day-cell.disabled { color: #444; cursor: default; }
+
+        .tab-bar {
+            height: 60px; display: flex; justify-content: space-around; align-items: center;
+            background-color: #1c1c1e; border-top: 1px solid #2c2c2e; width: 100%;
+        }
+        .tab-btn { background: none; border: none; color: #8e8e93; font-size: 24px; cursor: pointer; padding: 10px; }
+        .tab-btn.active { color: #0a84ff; }
+    </style>
+</head>
+<body>
+
+    <div class="watch-case">
+        <div class="crown" style="position: absolute; right: -12px; top: 100px; width: 12px; height: 40px; background: #48484a; border-radius: 0 6px 6px 0;"></div>
+        <div class="side-button" style="position: absolute; right: -12px; top: 160px; width: 6px; height: 80px; background: #48484a; border-radius: 0 4px 4px 0;"></div>
+        
+        <div class="screen">
+            <div id="measuring-screen">
+                <div class="pulse-circle"></div>
+                <h3 style="margin: 0;">측정 중...</h3>
+                <p style="color: #8e8e93; font-size: 14px;">센서 데이터 분석</p>
+            </div>
+
+            <div id="alert-screen">
+                <div class="alert-icon">⚠️</div>
+                <div class="alert-title">경고!</div>
+                <p style="font-size: 16px; margin-bottom: 20px;">
+                    심각한 활동량 불균형이<br>감지되었습니다.
+                </p>
+                <button class="alert-btn" onclick="closeAlert()">확인했습니다</button>
+            </div>
+
+            <div class="status-bar">
+                <span>09:41</span>
+                <span id="current-day-label">1월 14일</span>
+            </div>
+
+            <div id="tab-home" class="content">
+                <div class="gauge-container">
+                    <canvas id="gaugeChart"></canvas>
+                    <div class="value-display">
+                        <div class="value-number" id="current-uratio">--</div>
+                        <div class="value-label">Usage Ratio</div>
+                        <div class="unbalanced-arm" id="unbalanced-arm-display">--</div>
+                    </div>
+                </div>
+                <div class="status-msg" id="status-text">상태 확인 중</div>
+            </div>
+
+            <div id="tab-trend" class="content">
+                <p style="font-size: 12px; color: #8e8e93; margin-bottom: 5px;">날짜를 클릭하세요.</p>
+                <div class="chart-wrapper">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div id="tab-calendar" class="content">
+                <h3 style="margin-bottom: 10px;">2025년 1월</h3>
+                <div id="calendar-grid" class="calendar-grid">
+                    <div class="day-label">일</div><div class="day-label">월</div><div class="day-label">화</div>
+                    <div class="day-label">수</div><div class="day-label">목</div><div class="day-label">금</div><div class="day-label">토</div>
+                </div>
+            </div>
+
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('home')">🏠</button>
+                <button class="tab-btn" onclick="switchTab('trend')">📈</button>
+                <button class="tab-btn" onclick="switchTab('calendar')">📅</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 데이터 설정 (Right/Left -> 오른/왼 수정 완료) ---
+        const DAYS_IN_SIMULATION = 14;
+        const SIM_START_DAY = new Date('2025-01-01');
+
+        const simulationData = [
+            { day: 1, uRatio: 0.52, lessUsedArm: 'None' }, 
+            { day: 2, uRatio: 0.50, lessUsedArm: 'None' }, 
+            { day: 3, uRatio: 0.51, lessUsedArm: 'None' }, 
+            { day: 4, uRatio: 0.47, lessUsedArm: '오른' }, 
+            { day: 5, uRatio: 0.44, lessUsedArm: '오른' }, 
+            { day: 6, uRatio: 0.53, lessUsedArm: 'None' }, 
+            { day: 7, uRatio: 0.50, lessUsedArm: 'None' }, 
+            { day: 8, uRatio: 0.49, lessUsedArm: '왼' }, 
+            { day: 9, uRatio: 0.51, lessUsedArm: 'None' }, 
+            { day: 10, uRatio: 0.47, lessUsedArm: '왼' }, 
+            { day: 11, uRatio: 0.43, lessUsedArm: '왼' }, 
+            { day: 12, uRatio: 0.48, lessUsedArm: '오른' }, 
+            { day: 13, uRatio: 0.45, lessUsedArm: '오른' }, 
+            { day: 14, uRatio: 0.42, lessUsedArm: '오른' }  
+        ];
+
+        const uRatios = simulationData.map(d => d.uRatio);
+        const barColors = uRatios.map(r => r < 0.45 ? '#ff453a' : (r < 0.50 ? '#ff9f0a' : '#30d158'));
+
+        let gaugeChart, trendChart;
+        let activeDayIndex = simulationData.length - 1; 
+
+        // --- 초기화 로직 (측정 중 화면 포함) ---
+        window.onload = function() {
+            // 1. 3초간 측정 중 화면 보여주기
+            setTimeout(() => {
+                document.getElementById('measuring-screen').style.display = 'none'; // 측정 화면 숨김
+                document.getElementById('tab-home').classList.add('active'); // 홈 화면 활성화
+                
+                // 2. 차트 및 데이터 로드
+                initCharts();
+                generateCalendar(SIM_START_DAY);
+                updateHomeView(activeDayIndex); 
+
+            }, 3000); // 3000ms = 3초
+        };
+
+        function initCharts() {
+            // 메인 게이지
+            const ctxGauge = document.getElementById('gaugeChart').getContext('2d');
+            gaugeChart = new Chart(ctxGauge, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [0.5, 0.5], 
+                        backgroundColor: ['#333', '#333'],
+                        borderWidth: 0,
+                        circumference: 360,
+                        rotation: 270,
+                        cutout: '85%'
+                    }]
+                },
+                options: { plugins: { legend: { display: false }, tooltip: { enabled: false } }, responsive: true, maintainAspectRatio: false }
+            });
+
+            // 트렌드 차트
+            const ctxTrend = document.getElementById('trendChart').getContext('2d');
+            if (ctxTrend) {
+                trendChart = new Chart(ctxTrend, {
+                    type: 'bar',
+                    data: {
+                        labels: simulationData.map(d => d.day),
+                        datasets: [{ label: 'Ratio', data: uRatios, backgroundColor: barColors, borderRadius: 3 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        onClick: (e) => {
+                            const points = trendChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+                            if (points.length) {
+                                updateHomeView(points[0].index);
+                                switchTab('home');
+                            }
+                        },
+                        plugins: { legend: { display: false }, annotation: { annotations: { line1: { type: 'line', yMin: 0.45, yMax: 0.45, borderColor: 'white', borderDash: [5,5], borderWidth: 1 } } } },
+                        scales: { x: { grid: { display: false }, ticks: { color: '#888' } }, y: { min: 0.3, max: 0.6, grid: { color: '#333' } } }
+                    }
+                });
+            }
+        }
+
+        // --- 화면 업데이트 (경고창 로직 포함) ---
+        function updateHomeView(index) {
+            activeDayIndex = index;
+            const data = simulationData[index];
+            const ratio = data.uRatio;
+            const arm = data.lessUsedArm;
+            const color = ratio < 0.45 ? '#ff453a' : (ratio < 0.50 ? '#ff9f0a' : '#30d158');
+            
+            // 날짜 계산
+            const date = new Date(SIM_START_DAY);
+            date.setDate(date.getDate() + index);
+            document.getElementById('current-day-label').textContent = `${date.getMonth()+1}월 ${date.getDate()}일`;
+
+            // 값 업데이트
+            document.getElementById('current-uratio').textContent = ratio.toFixed(2);
+            const armEl = document.getElementById('unbalanced-arm-display');
+            const statusEl = document.getElementById('status-text');
+
+            // 상태 클래스 초기화
+            statusEl.className = 'status-msg';
+            armEl.style.color = '#fff';
+
+            // 경고창 초기화 (숨김)
+            closeAlert();
+
+            if (ratio < 0.45) {
+                // 심각 (빨강)
+                statusEl.textContent = "임계값 이탈 (심각한 불균형)";
+                statusEl.classList.add('msg-danger');
+                armEl.textContent = `${arm}팔 비사용 심화`;
+                armEl.style.color = '#ff453a';
+                
+                // 경고 팝업 띄우기 (데이터 로드 직후 바로 뜸)
+                document.getElementById('alert-screen').style.display = 'flex';
+
+            } else if (ratio < 0.50) {
+                // 주의 (주황)
+                statusEl.textContent = "조기 탐지 (감소 추세 감지)";
+                statusEl.classList.add('msg-warning');
+                armEl.textContent = `${arm}팔 사용량 주의`;
+                armEl.style.color = '#ff9f0a';
+            } else {
+                // 정상 (초록)
+                statusEl.textContent = "양팔 사용 균형 정상";
+                statusEl.classList.add('msg-safe');
+                armEl.textContent = "양팔 활동량 균형";
+                armEl.style.color = '#30d158';
+            }
+
+            // 게이지 업데이트
+            gaugeChart.data.datasets[0].data = [ratio, 1 - ratio];
+            gaugeChart.data.datasets[0].backgroundColor = [color, '#333'];
+            gaugeChart.update();
+        }
+
+        function generateCalendar(startDate) {
+            const grid = document.getElementById('calendar-grid');
+            // 기존 셀 제거 후 재생성 방지 로직 필요시 추가. 여기선 간단히 덮어씀.
+            // grid.innerHTML = '...header labels...'; (헤더는 HTML에 고정)
+            
+            // 그리드 내용 초기화 (헤더 제외하고 셀만 추가하려면 로직 변경 필요하지만, 여기선 간단히 뒤에 append)
+            // 편의상 HTML 구조 유지하고 날짜 셀만 동적 생성
+            
+            const startDay = startDate.getDay(); 
+            for(let i=0; i<startDay; i++) {
+                let d = document.createElement('div'); d.className='day-cell disabled'; grid.appendChild(d);
+            }
+            for(let d=1; d<=31; d++) {
+                let cell = document.createElement('div'); 
+                cell.className = 'day-cell'; 
+                cell.textContent = d;
+                if(d <= DAYS_IN_SIMULATION) {
+                    cell.classList.add('has-data');
+                    let idx = d-1;
+                    cell.onclick = () => { updateHomeView(idx); switchTab('home'); };
+                } else {
+                    cell.classList.add('disabled');
+                }
+                grid.appendChild(cell);
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('tab-'+tab).classList.add('active');
+            // 버튼 활성화는 순서대로 (0:홈, 1:트렌드, 2:캘린더)
+            const btnIdx = tab === 'home' ? 0 : (tab === 'trend' ? 1 : 2);
+            document.querySelectorAll('.tab-btn')[btnIdx].classList.add('active');
+
+            if(tab === 'trend' && trendChart) trendChart.resize();
+        }
+
+        function closeAlert() {
+            document.getElementById('alert-screen').style.display = 'none';
+        }
+
+    </script>
+</body>
+</html>
